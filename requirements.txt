@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic
+numpy
+pytest
+httpx
+requests
+torch
+# openenv  # Might not be available, will implement manual class if needed

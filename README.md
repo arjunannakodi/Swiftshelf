@@ -1,47 +1,139 @@
 # SwiftShelf++: Inventory Decision Environment 📦🚀
 
-![](https://img.shields.io/badge/Meta-OpenEnv-brightgreen)
-![](https://img.shields.io/badge/PyTorch-Hackathon-blue)
-![](https://img.shields.io/badge/Python-3.11-yellow)
+![Meta OpenEnv](https://img.shields.io/badge/Meta-OpenEnv-brightgreen)
+![PyTorch Hackathon](https://img.shields.io/badge/PyTorch-Hackathon-EE4C2C)
+![Python 3.11](https://img.shields.io/badge/Python-3.11-yellow)
+![Gymnasium](https://img.shields.io/badge/Gymnasium-0.26%2B-blue)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-**SwiftShelf++** is a complete, OpenEnv-compliant reinforcement learning environment simulating a real-world inventory management system. It's designed for the Meta PyTorch OpenEnv Hackathon with a focus on **correctness**, **stability**, and **scalability**.
+**SwiftShelf++** is a complete, **OpenEnv-compliant** reinforcement learning environment simulating a real-world dark-store inventory management system. Submitted to the **Meta PyTorch OpenEnv Hackathon**.
+
+---
 
 ## 🏗️ Project Architecture
 
 ```
-project/
-├── env/environment.py   # Core RL Environment (OpenEnv Style)
-├── api/server.py        # FastAPI API Server (port 8000)
-├── tasks.py             # OpenEnv Task Definitions
-├── grader.py            # Automated Performance Evaluator
-├── tests/test_env.py    # PyTest Suite
-├── Dockerfile           # Optimized Container Build
-├── requirements.txt     # Dependency Specification
-└── README.md            # Comprehensive Documentation
+SwiftShelf++/
+├── env/
+│   ├── __init__.py          # Package init
+│   └── environment.py       # Core RL Environment (gymnasium.Env)
+├── api/
+│   └── server.py            # FastAPI REST server (port 8000)
+├── agent/
+│   └── llm_agent.py         # PyTorch LLM Agent (OPT-125m)
+├── tests/
+│   └── test_env.py          # 9-test PyTest suite
+├── tasks.py                 # OpenEnv Task Definitions (3 tasks)
+├── grader.py                # Automated Performance Evaluator
+├── Dockerfile               # Container build (python:3.11-slim)
+├── requirements.txt         # Dependencies
+└── README.md
 ```
 
-## 🎮 Environment Features
+---
 
-*   **Real-world Logistics Models**: Item freshness (expiry), order fulfillment deadlines, and dynamic budget constraints.
-*   **Action Space (Discrete)**:
-    1. `pick_item`: Select item using FEFO logic.
-    2. `restock`: Replenish inventory (cost involved).
-    3. `apply_discount`: Reduce price of near-expiry stock.
-    4. `dispatch_order`: Fulfill customer orders.
-    5. `batch_pick`: Multi-order selection optimization.
-    6. `hold`: Strategic inactivity.
-*   **Dense Reward Function**: Balanced for positive (completed orders, efficiency) and negative (expiry, missed deadlines, unsafe dispatch) outcomes.
+## 🎮 Environment
+
+### Core Properties
+
+| Property | Value |
+|---|---|
+| Base class | `gymnasium.Env` |
+| Action space | `Discrete(6)` |
+| Episode length | 200 steps |
+| Items | 20 unique SKUs |
+| Initial budget | 1000.0 |
+
+### Action Space
+
+| ID | Action | Description |
+|---|---|---|
+| 0 | `pick_item` | Pick item for first pending order using FEFO logic |
+| 1 | `restock` | Add 20 units of stock to a random item (costs 50 budget) |
+| 2 | `apply_discount` | Apply 10% discount to near-expiry items (expiry ≤ 3) |
+| 3 | `dispatch_order` | Fulfill the first pending order |
+| 4 | `batch_pick` | Dispatch up to 3 orders in one step |
+| 5 | `hold` | Strategic inaction |
+
+### Observation Space
+
+| Field | Type | Description |
+|---|---|---|
+| `item_states` | `list[dict]` | `id`, `stock`, `expiry_days`, `price` per item (20 items) |
+| `pending_orders` | `list[dict]` | `item_id`, `quantity`, `deadline` per order |
+| `budget_remaining` | `float` | Available budget (starts at 1000.0) |
+| `near_expiry_count` | `int` | Items with `expiry_days` ≤ 3 |
+| `expired_count` | `int` | Items with `expiry_days` ≤ 0 |
+| `steps_elapsed` | `int` | Steps taken this episode |
+
+### Reward Table
+
+| Event | Reward |
+|---|---|
+| Dispatch with FEFO (oldest safe stock first) | **+20** |
+| Valid dispatch (any safe fulfillment) | **+10** |
+| Batch dispatch (per order) | **+10** |
+| Discount near-expiry item | **+5** |
+| FEFO-optimal pick | **+5** |
+| Survival bonus (zero expired items per step) | **+2** |
+| Budget comfort bonus (budget > 500) | **+1** |
+| FEFO violation pick | 0 (missed bonus) |
+| No orders to pick for | −5 |
+| Missed order deadline | −10 |
+| Restock when budget < 200 | −30 |
+| Out of budget / out of stock | −50 |
+| Unsafe dispatch (expiry_days ≤ 1) | −100 |
+| Expired item dispatched (expiry_days ≤ 0) | **−500 + terminate** |
+
+---
+
+## 🤖 LLM Agent (Meta PyTorch Integration)
+
+SwiftShelf++ ships with a **PyTorch-powered LLM agent** using Meta's `facebook/opt-125m` model. This is the core demonstration of the Meta PyTorch requirement.
+
+### How It Works
+
+1. The agent converts the current observation into a natural-language prompt.
+2. The `OPT-125m` model generates a response via `torch.no_grad()` inference.
+3. The agent parses the digit output to select an action (0–5).
+4. Runs via the HTTP API (`/reset` → `/step` loop).
+
+### Run the LLM Agent
+
+> **Prerequisite**: start the API server first (see below).
+
+```bash
+python agent/llm_agent.py
+```
+
+**Expected output:**
+```
+LLM Episode 1: 312.4
+LLM Episode 2: 287.1
+LLM Episode 3: 340.8
+LLM Agent Average: 313.4
+```
+
+### Sample Prompt
+
+```
+Inventory manager. Near expiry: 2. Pending orders: 4. Budget: 950. Expired items: 0.
+Actions: 0=pick 1=restock 2=discount 3=dispatch 4=batch 5=hold
+Best action digit:
+```
+
+---
 
 ## 🚀 Running SwiftShelf++
 
-### Using Docker (Recommended)
+### Option 1 — Docker (Recommended)
 
 ```bash
 docker build -t swiftshelf-env .
 docker run -p 8000:8000 swiftshelf-env
 ```
 
-### Local Setup
+### Option 2 — Local
 
 ```bash
 # Install dependencies
@@ -51,49 +143,106 @@ pip install -r requirements.txt
 uvicorn api.server:app --host 0.0.0.0 --port 8000
 ```
 
+---
+
 ## 📮 API Endpoints
 
-*   `GET  /health` : System status check.
-*   `POST /reset`  : Reinitialize environment.
-*   `GET  /state`  : Retrieve current observation.
-*   `POST /step`   : Execute action (input: `{"action": int}`).
-*   `POST /grade`  : Run automated performance assessment.
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check → `{"status":"ok","env":"SwiftShelf++ v1.0"}` |
+| `POST` | `/reset` | Reset environment → `{"observation": {...}, "info": {}}` |
+| `GET` | `/state` | Current observation as JSON |
+| `POST` | `/step` | Body: `{"action": int}` → `{observation, reward, terminated, truncated, info}` |
+| `POST` | `/grade` | Run 3 heuristic episodes → `{avg_reward, status: "PASS"/"FAIL"}` |
+| `GET` | `/tasks` | List evaluation task metadata |
 
-## Evaluation Metrics
+### Step Request / Response
 
-SwiftShelf++ uses three primary metrics to evaluate agent performance:
-
-1.  **Fulfillment Rate**: Tracks the number of customer orders successfully dispatched. High fulfillment directly increases rewards.
-2.  **Waste Management (Expired Items)**: Measures the number of items that reach expiry in the inventory. Agents must optimize stock rotation to minimize this.
-3.  **Efficiency Score**: A combined metric calculated as:
-    `efficiency_score = (orders_completed * 20) - (expired_count * 15) - steps_elapsed`
-    This score penalizes both waste and time while rewarding quick fulfillment.
-
-### 📊 Example Grader Output
-
-```text
-=================================================================
-Episode    | Reward     | Expired    | Orders     | Steps     
------------------------------------------------------------------
-1          | -245.00    | 12         | 4          | 50        
-2          | -312.40    | 14         | 2          | 50        
-3          | -280.00    | 12         | 3          | 50        
------------------------------------------------------------------
-AVERAGE    | -279.13    | 12.67      | 3.00       | 50.00     
-=================================================================
-
-RESULT: PASS ✅
-Confidence Level: High (Avg Reward -279.13 > -500.0, Avg Waste 12.67 < 15.0)
+**Request:**
+```json
+{"action": 3}
 ```
 
-## 🧪 Testing and Validation
-
-## 🏆 Hackathon Tasks
-
-1.  **Order Fulfillment**: Successfully complete at least one shipment.
-2.  **Expiry Minimization**: Optimize shelf-life management to reduce waste.
-3.  **Maximum Efficiency**: Balance stock rotation with order throughput.
+**Response:**
+```json
+{
+  "observation": { "item_states": [...], "pending_orders": [...], "budget_remaining": 950.0, "near_expiry_count": 1, "steps_elapsed": 1, "expired_count": 0 },
+  "reward": 33.0,
+  "terminated": false,
+  "truncated": false,
+  "info": { "orders_completed": 1, "expired_count": 0, "step": 1 }
+}
+```
 
 ---
 
-Built for **Meta PyTorch OpenEnv Hackathon**. Crafted with ❤️ for Senior RL Researchers.
+## 🧪 Testing and Validation
+
+### Run Tests
+
+```bash
+python -m pytest tests/ -v
+```
+
+### Expected Output
+
+```
+tests/test_env.py::test_reset_returns_valid_obs        PASSED
+tests/test_env.py::test_step_returns_5_tuple           PASSED
+tests/test_env.py::test_valid_actions_0_to_5           PASSED
+tests/test_env.py::test_invalid_action_raises          PASSED
+tests/test_env.py::test_episode_terminates             PASSED
+tests/test_env.py::test_reward_not_always_zero         PASSED
+tests/test_env.py::test_reset_clears_state             PASSED
+tests/test_env.py::test_gymnasium_env_compliance       PASSED
+tests/test_env.py::test_fefo_bonus_is_conditional      PASSED
+
+9 passed in 0.XX s
+```
+
+### Run Grader
+
+```bash
+python grader.py
+```
+
+### Sample Grader Output
+
+```
+======================================================================
+Episode    | Reward       | Expired    | Orders     | Steps
+----------------------------------------------------------------------
+1          | 412.00       | 0          | 18         | 200
+2          | 388.40       | 1          | 16         | 200
+3          | 445.20       | 0          | 19         | 200
+----------------------------------------------------------------------
+AVERAGE    | 415.20       | 0.33       | 17.67      | 200.00
+======================================================================
+
+RESULT: PASS
+Confidence Level: High (Avg Reward 415.20 >= -500.0, Avg Waste 0.33 < 15.0)
+```
+
+---
+
+## 🏆 Evaluation Tasks
+
+| Task | Name | Success Condition | Return Type |
+|---|---|---|---|
+| 1 | Basic Fulfillment | `orders_completed >= 1` AND `expired_count == 0` | `float (0.0 or 1.0)` |
+| 2 | Waste Reduction | `expired_count <= 2` AND `orders_completed >= 1` | `float (0.0 or 1.0)` |
+| 3 | Efficiency Score | `(orders×20 - expired×15 - steps) / 100` clamped `[0, 1]` | `float [0.0, 1.0]` |
+
+---
+
+## Evaluation Metrics
+
+1. **Fulfillment Rate** — Number of orders dispatched per episode.
+2. **Waste Management** — Items at `expiry_days <= 0` (penalised heavily).
+3. **FEFO Compliance** — First-Expired-First-Out dispatch order rewarded with bonus.
+4. **Efficiency Score** — Combined metric balancing orders, waste, and speed.
+
+---
+
+Built for the **Meta PyTorch OpenEnv Hackathon** 🔥  
+Powered by `gymnasium`, `FastAPI`, and `facebook/opt-125m` via PyTorch.

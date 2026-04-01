@@ -1,9 +1,15 @@
-fastapi
-uvicorn[standard]
-pydantic
-numpy
-pytest
-httpx
-requests
-torch
-# openenv  # Might not be available, will implement manual class if needed
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+pytest>=7.4.0
+httpx>=0.25.0
+requests>=2.31.0
+torch>=2.0.0
+transformers>=4.35.0
+accelerate>=0.24.0
+gymnasium>=0.26.0
+
+# Do NOT comment out openenv. If it installs, use it.
+# If pip install openenv fails, use gymnasium.Env as base class.

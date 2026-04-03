@@ -1,4 +1,4 @@
-# SwiftShelf++: Inventory Decision Environment 📦🚀
+# SwiftShelf++: Inventory Decision Environment 
 
 ![Meta OpenEnv](https://img.shields.io/badge/Meta-OpenEnv-brightgreen)
 ![PyTorch Hackathon](https://img.shields.io/badge/PyTorch-Hackathon-EE4C2C)
@@ -10,7 +10,7 @@
 
 ---
 
-## 🏗️ Project Architecture
+##  Project Architecture
 
 ```
 SwiftShelf++/
@@ -32,7 +32,7 @@ SwiftShelf++/
 
 ---
 
-## 🎮 Environment
+##  Environment
 
 ### Core Properties
 
@@ -87,7 +87,7 @@ SwiftShelf++/
 
 ---
 
-## 🤖 LLM Agent (Meta PyTorch Integration)
+##  LLM Agent (Meta PyTorch Integration)
 
 SwiftShelf++ ships with a **PyTorch-powered LLM agent** using Meta's `facebook/opt-125m` model. This is the core demonstration of the Meta PyTorch requirement.
 
@@ -135,7 +135,7 @@ Best action digit:
 
 ---
 
-## 📊 Agent Performance Comparison
+##  Agent Performance Comparison
 
 | Agent | Avg Episode Reward | Strategy |
 |---|---|---|
@@ -151,7 +151,7 @@ Best action digit:
 
 ---
 
-## 🚀 Running SwiftShelf++
+##  Running SwiftShelf++
 
 ### Option 1 — Docker (Recommended)
 
@@ -172,7 +172,7 @@ uvicorn api.server:app --host 0.0.0.0 --port 8000
 
 ---
 
-## 📮 API Endpoints
+##  API Endpoints
 
 | Method | Path | Description |
 |---|---|---|
@@ -203,7 +203,7 @@ uvicorn api.server:app --host 0.0.0.0 --port 8000
 
 ---
 
-## 🧪 Testing and Validation
+##  Testing and Validation
 
 ### Run Tests
 
@@ -254,7 +254,7 @@ Confidence Level: High (Avg Reward 1238.40 >= -500.0, Avg Waste 6.40 < 15.0)
 
 ---
 
-## 🏆 Evaluation Tasks
+##  Evaluation Tasks
 
 | Task | Name | Success Condition | Return Type |
 |---|---|---|---|
@@ -273,5 +273,5 @@ Confidence Level: High (Avg Reward 1238.40 >= -500.0, Avg Waste 6.40 < 15.0)
 
 ---
 
-Built for the **Meta PyTorch OpenEnv Hackathon** 🔥  
+Built for the **Meta PyTorch OpenEnv Hackathon**   
 Powered by `gymnasium`, `FastAPI`, and `facebook/opt-125m` via PyTorch.

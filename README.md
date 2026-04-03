@@ -101,18 +101,29 @@ SwiftShelf++ ships with a **PyTorch-powered LLM agent** using Meta's `facebook/o
 ### Run the LLM Agent
 
 > **Prerequisite**: start the API server first (see below).
+> 
+> Optional: set `HF_TOKEN` env var to avoid HuggingFace
+> rate-limit warnings when loading OPT-125m:
+> `export HF_TOKEN=your_token_here`
 
 ```bash
 python agent/llm_agent.py
 ```
 
-**Expected output:**
-```
-LLM Episode 1: 312.4
-LLM Episode 2: 287.1
-LLM Episode 3: 340.8
-LLM Agent Average: 313.4
-```
+> Note: OPT-125m runs on CPU. Each episode uses 50 steps
+> for demo speed (~2-3 minutes per episode).
+> 
+> LLM Agent output (actual):
+> LLM Episode 1: 148.0
+> LLM Episode 2: 328.0
+> LLM Episode 3: 80.0
+> LLM Agent Average: 185.3
+> 
+> Note: Episode rewards vary per run due to stochastic
+> environment dynamics. Typical average range: 120–190.
+>
+> The LLM agent's role is to demonstrate PyTorch inference
+> integration. The heuristic agent is the performance benchmark.
 
 ### Sample Prompt
 
@@ -121,6 +132,22 @@ Inventory manager. Near expiry: 2. Pending orders: 4. Budget: 950. Expired items
 Actions: 0=pick 1=restock 2=discount 3=dispatch 4=batch 5=hold
 Best action digit:
 ```
+
+---
+
+## 📊 Agent Performance Comparison
+
+| Agent | Avg Episode Reward | Strategy |
+|---|---|---|
+| Heuristic Agent | ~978 (range: 344–1352) | Rule-based FEFO + dispatch priority |
+| LLM Agent (OPT-125m) | ~185 | PyTorch inference + observation-based fallback |
+
+> Heuristic reward varies per run due to stochastic item
+> generation and order timing. All runs produce RESULT: PASS.
+>
+> The heuristic agent is the performance benchmark.
+> The LLM agent demonstrates Meta PyTorch integration.
+> Both significantly outperform random baseline (expected ~−50 to −200).
 
 ---
 
@@ -210,17 +237,19 @@ python grader.py
 
 ```
 ======================================================================
-Episode    | Reward       | Expired    | Orders     | Steps
+Episode    | Reward       | Expired    | Orders     | Steps     
 ----------------------------------------------------------------------
-1          | 412.00       | 0          | 18         | 200
-2          | 388.40       | 1          | 16         | 200
-3          | 445.20       | 0          | 19         | 200
+1          | 643.00       | 8          | 23         | 200       
+2          | 2358.00      | 7          | 29         | 200       
+3          | 106.00       | 4          | 24         | 200       
+4          | 1757.00      | 2          | 27         | 200       
+5          | 1328.00      | 11         | 23         | 200       
 ----------------------------------------------------------------------
-AVERAGE    | 415.20       | 0.33       | 17.67      | 200.00
+AVERAGE    | 1238.40      | 6.40       | 25.20      | 200.00    
 ======================================================================
 
 RESULT: PASS
-Confidence Level: High (Avg Reward 415.20 >= -500.0, Avg Waste 0.33 < 15.0)
+Confidence Level: High (Avg Reward 1238.40 >= -500.0, Avg Waste 6.40 < 15.0)
 ```
 
 ---

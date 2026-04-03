@@ -74,6 +74,14 @@ class InventoryEnv(gym.Env):
     # Gymnasium API
     # ================================================================== #
 
+    @property
+    def orders(self):
+        return self.pending_orders
+
+    @orders.setter
+    def orders(self, value):
+        self.pending_orders = value
+
     def reset(
         self,
         *,
@@ -189,29 +197,30 @@ class InventoryEnv(gym.Env):
         })
 
     def _age_items(self):
-        """Items lose one expiry_day every 20 environment steps.
-        Expired items have their stock zeroed (they become waste).
-        Returns count of newly expired items this step."""
+        """Items lose 0.05 expiry_day every step.
+        Expired items have their stock zeroed (they become waste)."""
         self._newly_expired = 0
-        if self.steps % 20 == 0:
-            for it in self.items:
-                if it["expiry_days"] > 0:
-                    it["expiry_days"] = max(0.0, it["expiry_days"] - 1.0)
-                    if it["expiry_days"] <= 0 and it["stock"] > 0:
-                        # Item just expired — waste it
-                        self._newly_expired += 1
-                        it["stock"] = 0  # expired stock is gone
+        for it in self.items:
+            if it["expiry_days"] > 0:
+                it["expiry_days"] = max(0.0, it["expiry_days"] - 0.05)
+                if it["expiry_days"] <= 0 and it["stock"] > 0:
+                    # Item just expired — waste it
+                    self._newly_expired += 1
+                    it["stock"] = 0  # expired stock is gone
 
     def _compute_per_step_reward(self) -> float:
-        """Survival and budget bonuses / expiry penalties (per step).
-        Penalty only fires for NEWLY expired items (at age tick steps)."""
+        """Survival and budget bonuses / expiry penalties (per step)."""
         reward = 0.0
         newly_expired = getattr(self, '_newly_expired', 0)
 
-        if newly_expired == 0:
+        # Check total expired items (Bug 3)
+        current_expired_count = sum(1 for it in self.items if it["expiry_days"] <= 0)
+        if current_expired_count == 0:
             reward += 2.0              # +2 survival bonus
-        else:
-            reward -= 15.0 * newly_expired  # -15 per newly expired item
+        
+        # Penalty for newly expired items this step (Bug 2)
+        if newly_expired > 0:
+            reward -= newly_expired * 5.0
 
         if self.budget > 500:
             reward += 1.0              # +1 budget comfort bonus
@@ -327,7 +336,8 @@ class InventoryEnv(gym.Env):
         # --- Safety check ---
         if it["expiry_days"] <= 0:
             # Critical Failure: dispatching truly expired item
-            return -500.0, True     # -500 + terminated
+            terminated = True
+            return -500.0, terminated
 
         if 0 < it["expiry_days"] <= 1:
             # Unsafe dispatch (last day remaining)

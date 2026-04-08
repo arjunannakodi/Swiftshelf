@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swiftshelf-plus-plus"
+version = "1.0.0"
+authors = [
+  { name="Arjun Annakodi", email="arjunannakodi@gmail.com" },
+]
+description = "Dark-store inventory RL environment for OpenEnv Hackathon"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "gymnasium",
+    "numpy",
+    "requests",
+    "pydantic",
+    "openai",
+    "openenv-core>=0.2.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[project.urls]
+"Homepage" = "https://huggingface.co/spaces/arjunannakodi/Swiftshelf"

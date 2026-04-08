@@ -70,7 +70,7 @@ class LLMAgent:
         except Exception:
             print(
                 "ERROR: API server not running.\n"
-                "Start it first: uvicorn api.server:app --port 7860\n"
+                "Start it first: uvicorn server.app:app --port 7860\n"
                 "Then re-run: python agent/llm_agent.py"
             )
             return []

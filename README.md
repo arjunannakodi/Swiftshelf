@@ -208,7 +208,7 @@ docker run -p 7860:7860 swiftshelf-env
 pip install -r requirements.txt
 
 # Start FastAPI server
-uvicorn api.server:app --host 0.0.0.0 --port 7860
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
 ---
@@ -299,9 +299,9 @@ Confidence Level: High (Avg Reward 1238.40 >= -500.0, Avg Waste 6.40 < 15.0)
 
 | Task | Name | Success Condition | Return Type |
 |---|---|---|---|
-| 1 | Basic Fulfillment | `orders_completed >= 1` AND `expired_count == 0` | `float (0.0 or 1.0)` |
-| 2 | Waste Reduction | `expired_count <= 2` AND `orders_completed >= 1` | `float (0.0 or 1.0)` |
-| 3 | Efficiency Score | `(orders×20 - expired×15 - steps) / 100` clamped `[0, 1]` | `float [0.0, 1.0]` |
+| 1 | Basic Fulfillment | `orders_completed >= 1` AND `expired_count == 0` | `float (0.01 or 0.99)` |
+| 2 | Waste Reduction | `expired_count <= 2` AND `orders_completed >= 1` | `float (0.01 or 0.99)` |
+| 3 | Efficiency Score | `(orders×20 - expired×15 - steps) / 100` clamped `(0.01, 0.99)` | `float [0.01, 0.99]` |
 
 ---
 

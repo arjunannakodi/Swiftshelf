@@ -30,8 +30,9 @@ SwiftShelf++/
 ├── env/
 │   ├── __init__.py          # Package init
 │   └── environment.py       # Core RL Environment (gymnasium.Env)
-├── api/
-│   └── server.py            # FastAPI REST server (port 7860)
+├── server/
+│   ├── app.py               # FastAPI REST server (port 7860)
+│   └── index.html           # Live dashboard (D3.js)
 ├── agent/
 │   └── llm_agent.py         # PyTorch LLM Agent (OPT-125m)
 ├── tests/

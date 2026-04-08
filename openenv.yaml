@@ -26,7 +26,7 @@ tasks:
     difficulty: hard
     description: >
       Normalized score: (orders×20 - expired×15 - steps) / 100,
-      clamped [0.0, 1.0].
+      clamped (0.01, 0.99).
 action_space:
   type: Discrete
   n: 6

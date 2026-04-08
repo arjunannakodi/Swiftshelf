@@ -57,7 +57,7 @@ This environment is fully compliant with the OpenEnv standard:
 | `inference.py` in root | ✅ |
 | HF Space deployed | ✅ |
 | Typed Pydantic models | ✅ |
-| 3 tasks with graders (0.0–1.0) | ✅ |
+| 3 tasks with graders (0.01–0.99) | ✅ |
 | Structured stdout logs | ✅ |
 
 ### Run Inference

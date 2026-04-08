@@ -13,7 +13,7 @@ class Task1:
             info.get("orders_completed", 0) >= 1
             and state.get("expired_count", 0) == 0
         )
-        return 1.0 if success else 0.0
+        return 0.99 if success else 0.01
 
 
 class Task2:
@@ -24,7 +24,7 @@ class Task2:
             state.get("expired_count", 0) <= 2
             and info.get("orders_completed", 0) >= 1
         )
-        return 1.0 if success else 0.0
+        return 0.99 if success else 0.01
 
 
 class Task3:
@@ -39,7 +39,7 @@ class Task3:
         expired = state.get("expired_count", 0)
         steps   = state.get("steps_elapsed", 0)
         raw = (orders * 20) - (expired * 15) - steps
-        return max(0.0, min(1.0, float(raw) / 100.0))
+        return max(0.01, min(0.99, float(raw) / 100.0))
 
 
 # ------------------------------------------------------------------ #
@@ -61,7 +61,7 @@ TASKS: Dict[int, Dict[str, Any]] = {
         "name": "Efficiency Score",
         "description": (
             "Normalised score: (orders×20 - expired×15 - steps) / 100, "
-            "clamped to [0, 1]."
+            "clamped to [0.01, 0.99]."
         ),
         "class": Task3,
     },

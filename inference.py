@@ -121,14 +121,14 @@ def run_task(client: OpenAI, task_id: int) -> None:
         steps_elapsed = obs.get("steps_elapsed", steps_taken)
 
         if task_id == 1:
-            score = 1.0 if (orders_completed >= 1 and expired_count == 0) else 0.0
+            score = 0.99 if (orders_completed >= 1 and expired_count == 0) else 0.01
             success = score >= 0.5
         elif task_id == 2:
-            score = 1.0 if (expired_count <= 2 and orders_completed >= 1) else 0.0
+            score = 0.99 if (expired_count <= 2 and orders_completed >= 1) else 0.01
             success = score >= 0.5
         elif task_id == 3:
             raw = (orders_completed * 20) - (expired_count * 15) - steps_elapsed
-            score = max(0.0, min(1.0, float(raw) / 100.0))
+            score = max(0.01, min(0.99, float(raw) / 100.0))
             success = score >= 0.1
 
     except Exception as e:

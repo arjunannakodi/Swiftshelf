@@ -1,59 +1,27 @@
+spec_version: 1
 name: swiftshelf-plus-plus
-version: "1.0.0"
+type: standard
+runtime: docker
+app: server.app:app
+port: 7860
 license: MIT
 description: >
   Dark-store inventory management RL environment. An AI agent
-  manages 20 SKUs, applying FEFO dispatch, expiry discounting,
+  manages 20 SKUs using FEFO dispatch, expiry discounting,
   and order batching to minimize waste and maximize fulfillment.
-author: "Arjun Annakodi"
+author: Arjun Annakodi
 tags:
   - inventory
   - logistics
   - real-world
   - fefo
-  - supply-chain
 tasks:
   - id: task1
     name: Basic Fulfillment
     difficulty: easy
-    description: "Complete >= 1 order with zero expired items."
   - id: task2
     name: Waste Reduction
     difficulty: medium
-    description: "Keep expired_count <= 2 while completing >= 1 order."
   - id: task3
     name: Efficiency Score
     difficulty: hard
-    description: >
-      Normalized score: (orders×20 - expired×15 - steps) / 100,
-      clamped (0.01, 0.99).
-action_space:
-  type: Discrete
-  n: 6
-  actions:
-    - {id: 0, name: pick_item}
-    - {id: 1, name: restock}
-    - {id: 2, name: apply_discount}
-    - {id: 3, name: dispatch_order}
-    - {id: 4, name: batch_pick}
-    - {id: 5, name: hold}
-observation_space:
-  fields:
-    - {name: item_states,       type: "list[dict]"}
-    - {name: pending_orders,    type: "list[dict]"}
-    - {name: budget_remaining,  type: float}
-    - {name: near_expiry_count, type: int}
-    - {name: expired_count,     type: int}
-    - {name: steps_elapsed,     type: int}
-reward:
-  type: float
-  range: [-500, 45]
-  shaped: true
-episode_length: 200
-docker_port: 7860
-endpoints:
-  reset:  POST /reset
-  step:   POST /step
-  state:  GET  /state
-  health: GET  /health
-  tasks:  GET  /tasks

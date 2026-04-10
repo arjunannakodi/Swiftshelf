@@ -1,49 +1,63 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
+import asyncio
 import os
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
+
+import httpx
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
 
 import grader
 from env.environment import InventoryEnv
+from models import InventoryAction, InventoryObservation, InventoryState
 from tasks import TASKS
 
-class ItemState(BaseModel):
-    id: int
-    stock: int
-    expiry_days: float
-    price: float
+# ------------------------------------------------------------------ #
+# Keepalive lifespan
+# ------------------------------------------------------------------ #
 
-class PendingOrder(BaseModel):
-    item_id: int
-    quantity: int
-    deadline: int
+async def keepalive_ping():
+    """Ping self every 4 minutes to prevent HF Space sleep."""
+    await asyncio.sleep(30)  # Wait for startup
+    while True:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get("http://localhost:7860/health", timeout=5)
+        except Exception:
+            pass
+        await asyncio.sleep(240)  # 4 minutes
 
-class Observation(BaseModel):
-    item_states: List[Dict[str, Any]]
-    pending_orders: List[Dict[str, Any]]
-    budget_remaining: float
-    near_expiry_count: int
-    expired_count: int
-    steps_elapsed: int
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(keepalive_ping())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
+# ------------------------------------------------------------------ #
+# Local Pydantic models (server-side request/response shapes)
+# ------------------------------------------------------------------ #
 
 class Action(BaseModel):
     action: int   # 0-5
 
+class ResetResponse(BaseModel):
+    observation: InventoryObservation
+    info: Dict[str, Any]
+
 class StepResponse(BaseModel):
-    observation: Observation
+    observation: InventoryObservation
     reward: float
     terminated: bool
     truncated: bool
     info: Dict[str, Any]
-
-class ResetResponse(BaseModel):
-    observation: Observation
-    info: Dict[str, Any]
-
-class State(Observation):
-    pass
 
 class MetadataResponse(BaseModel):
     name: str
@@ -55,6 +69,7 @@ class SchemaResponse(BaseModel):
     observation: Dict[str, Any]
     state: Dict[str, Any]
 
+
 # ------------------------------------------------------------------ #
 # App Setup
 # ------------------------------------------------------------------ #
@@ -65,6 +80,7 @@ app = FastAPI(
         "logistics RL environment. Meta PyTorch Hackathon submission."
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -79,6 +95,7 @@ app.add_middleware(
 env = InventoryEnv()
 env.reset()
 
+
 # ------------------------------------------------------------------ #
 # Endpoints
 # ------------------------------------------------------------------ #
@@ -89,10 +106,12 @@ def root():
     with open(index_path, "r") as f:
         return HTMLResponse(content=f.read())
 
+
 @app.get("/health", summary="Health check")
 def health() -> Dict[str, str]:
     """Returns 'healthy' status per OpenEnv spec."""
-    return {"status": "healthy", "env": "SwiftShelf++ v1.0"}
+    return {"status": "healthy", "service": "swiftshelf-plus-plus"}
+
 
 @app.get("/metadata", response_model=MetadataResponse, summary="Get environment metadata")
 def get_metadata():
@@ -102,22 +121,34 @@ def get_metadata():
         "version": "1.0.0"
     }
 
+
 @app.get("/schema", response_model=SchemaResponse, summary="Get environment schemas")
 def get_schema():
     return {
-        "action": Action.schema(),
-        "observation": Observation.schema(),
-        "state": State.schema()
+        "action": Action.model_json_schema(),
+        "observation": InventoryObservation.model_json_schema(),
+        "state": InventoryState.model_json_schema(),
     }
+
 
 @app.post("/reset", response_model=ResetResponse, summary="Reset environment")
 def reset() -> Dict[str, Any]:
     obs, info = env.reset()
     return {"observation": obs, "info": info}
 
-@app.get("/state")
-def get_state():
-    return env.observe()
+
+@app.get("/state", response_model=InventoryState, summary="Get current episode state")
+def get_state() -> InventoryState:
+    """Returns full current episode state."""
+    obs_dict = env.observe()
+    obs = InventoryObservation(**obs_dict)
+    return InventoryState(
+        observation=obs,
+        total_reward=getattr(env, "_total_reward", 0.0),
+        step=getattr(env, "_step_count", 0),
+        done=False,
+    )
+
 
 @app.post("/step", response_model=StepResponse, summary="Execute one action step")
 def step(request: Action) -> Dict[str, Any]:
@@ -130,10 +161,12 @@ def step(request: Action) -> Dict[str, Any]:
         "info": info,
     }
 
+
 @app.post("/mcp", summary="MCP JSON-RPC Interface Placeholder")
 def mcp_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Minimum JSON-RPC stub for validator compliance."""
     return {"jsonrpc": "2.0", "id": payload.get("id"), "result": "ok"}
+
 
 @app.get("/tasks", summary="List available evaluation tasks")
 def get_tasks() -> List[Dict[str, Any]]:
@@ -146,6 +179,7 @@ def get_tasks() -> List[Dict[str, Any]]:
         for task_id, task_data in TASKS.items()
     ]
 
+
 @app.post("/grade", summary="Run heuristic grader")
 def grade_endpoint() -> Dict[str, Any]:
     avg_reward = grader.run_episodes(num_episodes=3, max_steps=200)
@@ -156,9 +190,11 @@ def grade_endpoint() -> Dict[str, Any]:
         "status": status,
     }
 
+
 def main():
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=7860)
+
 
 if __name__ == "__main__":
     main()

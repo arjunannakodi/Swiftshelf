@@ -11,4 +11,11 @@ COPY . .
 
 EXPOSE 7860
 
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# No HEALTHCHECK — let HF Spaces manage health
+# Use longer timeout so space doesn't die during cold start
+
+CMD ["uvicorn", "server.app:app", \
+     "--host", "0.0.0.0", \
+     "--port", "7860", \
+     "--timeout-keep-alive", "120", \
+     "--workers", "1"]

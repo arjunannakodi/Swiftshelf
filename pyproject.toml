@@ -33,3 +33,6 @@ server = "server.app:main"
 
 [project.urls]
 "Homepage" = "https://huggingface.co/spaces/arjunannakodi/Swiftshelf"
+
+[tool.pyrefly]
+search_path = ["."]

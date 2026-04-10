@@ -153,6 +153,7 @@ def validate_running_environment(
         )
 
         if openapi_ok:
+            assert isinstance(openapi_json, dict)  # narrowed: openapi_ok guarantees this
             api_version = str(openapi_json["info"]["version"])
             openapi_paths = openapi_json.get("paths", {})
             criteria.append(

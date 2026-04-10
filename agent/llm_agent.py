@@ -9,7 +9,9 @@ class LLMAgent:
         self.base_url = base_url
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL)
+        assert self.tokenizer is not None, "Tokenizer failed to load"
         self.model = AutoModelForCausalLM.from_pretrained(MODEL).to(self.device)
+        assert self.model is not None, "Model failed to load"
         self.model.eval()
 
     def obs_to_prompt(self, obs):
@@ -26,6 +28,8 @@ class LLMAgent:
         )
 
     def get_action(self, obs):
+        assert self.tokenizer is not None, "Tokenizer not initialized"
+        assert self.model is not None, "Model not initialized"
         prompt = self.obs_to_prompt(obs)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
         with torch.no_grad():
@@ -38,7 +42,7 @@ class LLMAgent:
         # Extract only the newly generated tokens (after the prompt)
         prompt_len = len(self.tokenizer.encode(prompt))
         new_tokens = outputs[0][prompt_len:]
-        new_text = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        new_text = str(self.tokenizer.decode(new_tokens.tolist(), skip_special_tokens=True)).strip()
 
         # Try to find a valid digit in new text first
         for char in new_text:

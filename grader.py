@@ -60,6 +60,7 @@ def run_episodes(num_episodes: int = 5, max_steps: int = 200) -> float:
         total_reward = 0.0
         done = False
         step_count = 0
+        info: dict = {}
 
         while not done and step_count < max_steps:
             action = heuristic_agent(obs)

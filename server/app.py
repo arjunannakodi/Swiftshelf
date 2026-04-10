@@ -1,17 +1,17 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 import grader
 from env.environment import InventoryEnv
-from models import InventoryAction, InventoryObservation, InventoryState
+from models import InventoryObservation, InventoryState
 from tasks import TASKS
 
 # ------------------------------------------------------------------ #
@@ -84,7 +84,7 @@ app = FastAPI(
 )
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # type: ignore[arg-type]
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],

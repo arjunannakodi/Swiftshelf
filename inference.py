@@ -86,7 +86,7 @@ def run_task(client: OpenAI, task_id: int) -> None:
             "difficulty": ["easy","medium","hard"][task_id-1]
         }
 
-    log_start(task=task_meta["name"], env=BENCHMARK, model=MODEL_NAME)
+    log_start(task=str(task_meta["name"]), env=BENCHMARK, model=MODEL_NAME)
     
     rewards = []
     success = False

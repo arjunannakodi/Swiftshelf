@@ -25,23 +25,27 @@ short_description: Dark-store inventory RL environment for OpenEnv Hackathon
 
 ```
 SwiftShelf++/
-├── inference.py         # OpenEnv baseline inference script (root)
-├── openenv.yaml         # OpenEnv metadata and spec (root)
+├── __init__.py          # Package exports (Action, Observation, Env)
+├── models.py            # Pydantic models: Action, Observation, State
+├── client.py            # SwiftShelfClient for remote connection
+├── inference.py         # OpenEnv baseline inference script
+├── openenv.yaml         # OpenEnv spec (spec_version: 1)
+├── pyproject.toml       # Package metadata
+├── tasks.py             # OpenEnv Task Definitions (3 tasks)
+├── grader.py            # Automated Performance Evaluator
+├── Dockerfile           # Container build (python:3.11-slim)
+├── requirements.txt     # Dependencies
+├── README.md
 ├── env/
-│   ├── __init__.py          # Package init
-│   └── environment.py       # Core RL Environment (gymnasium.Env)
+│   ├── __init__.py
+│   └── environment.py   # Core RL Environment (gymnasium.Env)
 ├── server/
-│   ├── app.py               # FastAPI REST server (port 7860)
-│   └── index.html           # Live dashboard (D3.js)
+│   ├── app.py           # FastAPI REST server (port 7860)
+│   └── index.html       # Live dashboard (D3.js)
 ├── agent/
-│   └── llm_agent.py         # PyTorch LLM Agent (OPT-125m)
-├── tests/
-│   └── test_env.py          # 9-test PyTest suite
-├── tasks.py                 # OpenEnv Task Definitions (3 tasks)
-├── grader.py                # Automated Performance Evaluator
-├── Dockerfile               # Container build (python:3.11-slim)
-├── requirements.txt         # Dependencies
-└── README.md
+│   └── llm_agent.py     # PyTorch LLM Agent (OPT-125m)
+└── tests/
+    └── test_env.py      # 9-test PyTest suite
 ```
 
 ---
@@ -52,12 +56,13 @@ This environment is fully compliant with the OpenEnv standard:
 
 | Requirement | Status |
 |---|---|
-| `openenv.yaml` present | ✅ |
-| `openenv validate` passes | ✅ |
+| `openenv.yaml` (spec_version: 1) | ✅ |
+| `models.py` (Pydantic typed models) | ✅ |
+| `client.py` (SwiftShelfClient) | ✅ |
+| `__init__.py` (package exports) | ✅ |
 | `inference.py` in root | ✅ |
 | HF Space deployed | ✅ |
-| Typed Pydantic models | ✅ |
-| 3 tasks with graders (0.01–0.99) | ✅ |
+| 3 tasks scoring 0.01–0.99 | ✅ |
 | Structured stdout logs | ✅ |
 
 ### Run Inference
@@ -217,7 +222,7 @@ uvicorn server.app:app --host 0.0.0.0 --port 7860
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | Health check → `{"status":"ok","env":"SwiftShelf++ v1.0"}` |
+| `GET` | `/health` | Health check → `{"status":"healthy","service":"swiftshelf-plus-plus"}` |
 | `POST` | `/reset` | Reset environment → `{"observation": {...}, "info": {}}` |
 | `GET` | `/state` | Current observation as JSON |
 | `POST` | `/step` | Body: `{"action": int}` → `{observation, reward, terminated, truncated, info}` |

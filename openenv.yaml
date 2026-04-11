@@ -2,7 +2,7 @@ spec_version: 1
 name: swiftshelf-plus-plus
 type: standard
 runtime: docker
-app: server.app:app
+app: app:app
 port: 7860
 license: MIT
 description: >

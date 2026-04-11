@@ -18,14 +18,16 @@ classifiers = [
 ]
 dependencies = [
     "fastapi",
-    "uvicorn",
+    "uvicorn[standard]",
+    "pydantic",
     "gymnasium",
     "numpy",
     "requests",
-    "pydantic",
     "openai",
     "httpx",
     "openenv-core>=0.2.0",
+    "torch",
+    "transformers",
 ]
 
 [project.scripts]

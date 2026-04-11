@@ -13,46 +13,48 @@ short_description: Dark-store inventory RL environment for OpenEnv Hackathon
 
 ![Meta OpenEnv](https://img.shields.io/badge/Meta-OpenEnv-brightgreen)
 ![PyTorch Hackathon](https://img.shields.io/badge/PyTorch-Hackathon-EE4C2C)
-![Python 3.11](https://img.shields.io/badge/Python-3.11-yellow)
-![Gymnasium](https://img.shields.io/badge/Gymnasium-0.26%2B-blue)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-yellow)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
 **SwiftShelf++** is a complete, **OpenEnv-compliant** reinforcement learning environment simulating a real-world dark-store inventory management system. Submitted to the **Meta PyTorch OpenEnv Hackathon**.
 
+> 🌐 **Live on Hugging Face Spaces:** [arjunannakodi/Swiftshelf](https://huggingface.co/spaces/arjunannakodi/Swiftshelf)
+
 ---
 
-##  Project Architecture
+## Project Architecture
 
 ```
 SwiftShelf++/
-├── __init__.py          # Package exports (Action, Observation, Env)
-├── models.py            # Pydantic models: Action, Observation, State
-├── client.py            # SwiftShelfClient for remote connection
-├── inference.py         # OpenEnv baseline inference script
+├── __init__.py          # Package exports (InventoryEnv, SwiftShelfClient, models)
+├── models.py            # Pydantic models: InventoryAction, InventoryObservation, InventoryState, StepResult
+├── client.py            # SwiftShelfClient — OpenEnv-compatible HTTP client
+├── inference.py         # OpenEnv baseline inference script (stdout: [START]/[STEP]/[END])
+├── tasks.py             # OpenEnv Task Definitions (Task1, Task2, Task3)
+├── grader.py            # Automated heuristic performance evaluator
 ├── openenv.yaml         # OpenEnv spec (spec_version: 1)
-├── pyproject.toml       # Package metadata
-├── tasks.py             # OpenEnv Task Definitions (3 tasks)
-├── grader.py            # Automated Performance Evaluator
+├── pyproject.toml       # Package metadata + [project.scripts] server entry
 ├── Dockerfile           # Container build (python:3.11-slim)
-├── requirements.txt     # Dependencies
 ├── README.md
 ├── env/
 │   ├── __init__.py
-│   └── environment.py   # Core RL Environment (gymnasium.Env)
+│   └── environment.py   # Core RL Environment (gymnasium.Env, Discrete(6))
 ├── server/
-│   ├── app.py           # FastAPI REST server (port 7860)
+│   ├── app.py           # FastAPI REST server (port 7860) + keepalive lifespan
 │   └── index.html       # Live dashboard (D3.js)
 ├── agent/
-│   └── llm_agent.py     # PyTorch LLM Agent (OPT-125m)
-└── tests/
-    └── test_env.py      # 9-test PyTest suite
+│   └── llm_agent.py     # PyTorch LLM Agent (facebook/opt-125m)
+├── tests/
+│   └── test_env.py      # PyTest suite (9 tests)
+└── tmp/
+    ├── openenv_validation.py    # OpenEnv runtime & local validation library
+    └── openenv_validate_cmd.py  # `openenv validate` CLI command implementation
 ```
 
 ---
 
 ## OpenEnv Compliance
-
-This environment is fully compliant with the OpenEnv standard:
 
 | Requirement | Status |
 |---|---|
@@ -61,11 +63,14 @@ This environment is fully compliant with the OpenEnv standard:
 | `client.py` (SwiftShelfClient) | ✅ |
 | `__init__.py` (package exports) | ✅ |
 | `inference.py` in root | ✅ |
-| HF Space deployed | ✅ |
-| 3 tasks scoring 0.01–0.99 | ✅ |
-| Structured stdout logs | ✅ |
+| Structured stdout `[START]`/`[STEP]`/`[END]` logs | ✅ |
+| HF Space deployed (Docker SDK) | ✅ |
+| 3 tasks scoring in range `(0.01, 0.99)` | ✅ |
+| `/health`, `/metadata`, `/schema`, `/mcp` endpoints | ✅ |
+| `[project.scripts]` server entry point | ✅ |
 
 ### Run Inference
+
 ```bash
 export API_BASE_URL="https://router.huggingface.co/v1"
 export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
@@ -78,7 +83,7 @@ Expected output: `[START]`, `[STEP]`, `[END]` traces for all 3 tasks.
 
 ---
 
-##  Environment
+## Environment
 
 ### Core Properties
 
@@ -96,7 +101,7 @@ Expected output: `[START]`, `[STEP]`, `[END]` traces for all 3 tasks.
 |---|---|---|
 | 0 | `pick_item` | Pick item for first pending order using FEFO logic |
 | 1 | `restock` | Add 20 units of stock to a random item (costs 50 budget) |
-| 2 | `apply_discount` | Apply 10% discount to near-expiry items (expiry ≤ 3) |
+| 2 | `apply_discount` | Apply 10% discount to near-expiry items (expiry ≤ 3 days) |
 | 3 | `dispatch_order` | Fulfill the first pending order |
 | 4 | `batch_pick` | Dispatch up to 3 orders in one step |
 | 5 | `hold` | Strategic inaction |
@@ -133,43 +138,37 @@ Expected output: `[START]`, `[STEP]`, `[END]` traces for all 3 tasks.
 
 ---
 
-##  LLM Agent (Meta PyTorch Integration)
+## LLM Agent (Meta PyTorch Integration)
 
-SwiftShelf++ ships with a **PyTorch-powered LLM agent** using Meta's `facebook/opt-125m` model. This is the core demonstration of the Meta PyTorch requirement.
+SwiftShelf++ ships with a **PyTorch-powered LLM agent** using Meta's `facebook/opt-125m` model.
 
 ### How It Works
 
 1. The agent converts the current observation into a natural-language prompt.
 2. The `OPT-125m` model generates a response via `torch.no_grad()` inference.
 3. The agent parses the digit output to select an action (0–5).
-4. Runs via the HTTP API (`/reset` → `/step` loop).
+4. Falls back to a heuristic rule if the model output is invalid.
+5. Runs via the HTTP API (`/reset` → `/step` loop).
 
 ### Run the LLM Agent
 
 > **Prerequisite**: start the API server first (see below).
-> 
-> Optional: set `HF_TOKEN` env var to avoid HuggingFace
-> rate-limit warnings when loading OPT-125m:
-> `export HF_TOKEN=your_token_here`
 
 ```bash
 python agent/llm_agent.py
 ```
 
-> Note: OPT-125m runs on CPU. Each episode uses 50 steps
-> for demo speed (~2-3 minutes per episode).
-> 
-> LLM Agent output (actual):
+> Note: OPT-125m runs on CPU. Each episode uses up to 50 steps.
+>
+> LLM Agent sample output:
+> ```
 > LLM Episode 1: 148.0
 > LLM Episode 2: 328.0
 > LLM Episode 3: 80.0
 > LLM Agent Average: 185.3
-> 
-> Note: Episode rewards vary per run due to stochastic
-> environment dynamics. Typical average range: 120–190.
->
-> The LLM agent's role is to demonstrate PyTorch inference
-> integration. The heuristic agent is the performance benchmark.
+> ```
+> Episode rewards vary per run due to stochastic environment dynamics.
+> Typical average range: 120–190.
 
 ### Sample Prompt
 
@@ -181,23 +180,20 @@ Best action digit:
 
 ---
 
-##  Agent Performance Comparison
+## Agent Performance Comparison
 
 | Agent | Avg Episode Reward | Strategy |
 |---|---|---|
 | Heuristic Agent | ~978 (range: 344–1352) | Rule-based FEFO + dispatch priority |
-| LLM Agent (OPT-125m) | ~185 | PyTorch inference + observation-based fallback |
+| LLM Agent (OPT-125m) | ~185 (range: 80–330) | PyTorch inference + heuristic fallback |
 
-> Heuristic reward varies per run due to stochastic item
-> generation and order timing. All runs produce RESULT: PASS.
->
 > The heuristic agent is the performance benchmark.
 > The LLM agent demonstrates Meta PyTorch integration.
-> Both significantly outperform random baseline (expected ~−50 to −200).
+> Both significantly outperform a random baseline (~−50 to −200).
 
 ---
 
-##  Running SwiftShelf++
+## Running SwiftShelf++
 
 ### Option 1 — Docker (Recommended)
 
@@ -206,28 +202,42 @@ docker build -t swiftshelf-env .
 docker run -p 7860:7860 swiftshelf-env
 ```
 
-### Option 2 — Local
+### Option 2 — Local (uv)
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies with uv
+pip install uv
+uv sync
 
 # Start FastAPI server
+uv run server
+# or equivalently:
+uvicorn server.app:app --host 0.0.0.0 --port 7860
+```
+
+### Option 3 — Local (pip)
+
+```bash
+pip install -e .
 uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
 ---
 
-##  API Endpoints
+## API Endpoints
 
 | Method | Path | Description |
 |---|---|---|
+| `GET` | `/` | Live D3.js dashboard (HTML) |
 | `GET` | `/health` | Health check → `{"status":"healthy","service":"swiftshelf-plus-plus"}` |
+| `GET` | `/metadata` | Environment name, description, version |
+| `GET` | `/schema` | JSON schemas for action, observation, state |
+| `GET` | `/state` | Full current episode state |
+| `GET` | `/tasks` | List of evaluation task metadata |
 | `POST` | `/reset` | Reset environment → `{"observation": {...}, "info": {}}` |
-| `GET` | `/state` | Current observation as JSON |
-| `POST` | `/step` | Body: `{"action": int}` → `{observation, reward, terminated, truncated, info}` |
-| `POST` | `/grade` | Run 3 heuristic episodes → `{avg_reward, status: "PASS"/"FAIL"}` |
-| `GET` | `/tasks` | List evaluation task metadata |
+| `POST` | `/step` | Execute action → `{observation, reward, terminated, truncated, info}` |
+| `POST` | `/grade` | Run 3 heuristic episodes → `{"avg_reward": float, "status": "PASS"/"FAIL"}` |
+| `POST` | `/mcp` | JSON-RPC 2.0 stub for validator compliance |
 
 ### Step Request / Response
 
@@ -239,17 +249,51 @@ uvicorn server.app:app --host 0.0.0.0 --port 7860
 **Response:**
 ```json
 {
-  "observation": { "item_states": [...], "pending_orders": [...], "budget_remaining": 950.0, "near_expiry_count": 1, "steps_elapsed": 1, "expired_count": 0 },
+  "observation": {
+    "item_states": [...],
+    "pending_orders": [...],
+    "budget_remaining": 950.0,
+    "near_expiry_count": 1,
+    "expired_count": 0,
+    "steps_elapsed": 1
+  },
   "reward": 33.0,
   "terminated": false,
   "truncated": false,
-  "info": { "orders_completed": 1, "expired_count": 0, "step": 1 }
+  "info": {"orders_completed": 1, "expired_count": 0, "step": 1}
 }
 ```
 
 ---
 
-##  Testing and Validation
+## SwiftShelfClient Usage
+
+```python
+from client import SwiftShelfClient
+from models import InventoryAction
+
+client = SwiftShelfClient("http://localhost:7860")
+
+obs = client.reset()
+print(obs.budget_remaining)   # 1000.0
+
+result = client.step(InventoryAction(action=3))
+print(result.reward)          # e.g. 33.0
+print(result.terminated)      # False
+
+state = client.state()
+print(state.total_reward)     # cumulative reward
+```
+
+---
+
+## Testing and Validation
+
+### Install Test Dependencies
+
+```bash
+pip install gymnasium pytest
+```
 
 ### Run Tests
 
@@ -283,15 +327,15 @@ python grader.py
 
 ```
 ======================================================================
-Episode    | Reward       | Expired    | Orders     | Steps     
+Episode    | Reward       | Expired    | Orders     | Steps
 ----------------------------------------------------------------------
-1          | 643.00       | 8          | 23         | 200       
-2          | 2358.00      | 7          | 29         | 200       
-3          | 106.00       | 4          | 24         | 200       
-4          | 1757.00      | 2          | 27         | 200       
-5          | 1328.00      | 11         | 23         | 200       
+1          | 643.00       | 8          | 23         | 200
+2          | 2358.00      | 7          | 29         | 200
+3          | 106.00       | 4          | 24         | 200
+4          | 1757.00      | 2          | 27         | 200
+5          | 1328.00      | 11         | 23         | 200
 ----------------------------------------------------------------------
-AVERAGE    | 1238.40      | 6.40       | 25.20      | 200.00    
+AVERAGE    | 1238.40      | 6.40       | 25.20      | 200.00
 ======================================================================
 
 RESULT: PASS
@@ -300,24 +344,40 @@ Confidence Level: High (Avg Reward 1238.40 >= -500.0, Avg Waste 6.40 < 15.0)
 
 ---
 
-##  Evaluation Tasks
+## Evaluation Tasks
 
-| Task | Name | Success Condition | Return Type |
+| Task | Name | Success Condition | Score |
 |---|---|---|---|
-| 1 | Basic Fulfillment | `orders_completed >= 1` AND `expired_count == 0` | `float (0.01 or 0.99)` |
-| 2 | Waste Reduction | `expired_count <= 2` AND `orders_completed >= 1` | `float (0.01 or 0.99)` |
-| 3 | Efficiency Score | `(orders×20 - expired×15 - steps) / 100` clamped `(0.01, 0.99)` | `float [0.01, 0.99]` |
+| 1 | Basic Fulfillment | `orders_completed >= 1` AND `expired_count == 0` | `0.99` (pass) / `0.01` (fail) |
+| 2 | Waste Reduction | `expired_count <= 2` AND `orders_completed >= 1` | `0.99` (pass) / `0.01` (fail) |
+| 3 | Efficiency Score | `(orders×20 − expired×15 − steps) / 100` | `float` clamped to `[0.01, 0.99]` |
 
 ---
 
 ## Evaluation Metrics
 
 1. **Fulfillment Rate** — Number of orders dispatched per episode.
-2. **Waste Management** — Items at `expiry_days <= 0` (penalised heavily).
+2. **Waste Management** — Items reaching `expiry_days <= 0` (penalised heavily).
 3. **FEFO Compliance** — First-Expired-First-Out dispatch order rewarded with bonus.
-4. **Efficiency Score** — Combined metric balancing orders, waste, and speed.
+4. **Efficiency Score** — Combined metric balancing orders completed, waste, and steps taken.
 
 ---
 
-Built for the **Meta PyTorch OpenEnv Hackathon**   
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| `fastapi` | REST API server |
+| `uvicorn` | ASGI server |
+| `gymnasium` | RL environment base class |
+| `numpy` | Numerical operations |
+| `requests` | HTTP client (agent & client) |
+| `pydantic` | Typed data models |
+| `openai` | OpenAI-compatible LLM calls in inference.py |
+| `httpx` | Async HTTP for keepalive ping |
+| `openenv-core>=0.2.0` | OpenEnv validator compliance |
+
+---
+
+Built for the **Meta PyTorch OpenEnv Hackathon**  
 Powered by `gymnasium`, `FastAPI`, and `facebook/opt-125m` via PyTorch.

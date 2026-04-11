@@ -113,21 +113,36 @@ def health() -> Dict[str, str]:
     return {"status": "healthy", "service": "swiftshelf-plus-plus"}
 
 
-@app.get("/metadata", response_model=MetadataResponse, summary="Get environment metadata")
+@app.get("/metadata")
 def get_metadata():
     return {
-        "name": "SwiftShelf++",
-        "description": "High-fidelity logistics simulation for FEFO inventory management.",
-        "version": "1.0.0"
+        "name": "swiftshelf-plus-plus",
+        "version": "1.0.0",
+        "description": "Dark-store inventory RL environment",
+        "author": "Arjun Annakodi"
     }
 
 
-@app.get("/schema", response_model=SchemaResponse, summary="Get environment schemas")
+@app.get("/schema")
 def get_schema():
     return {
-        "action": Action.model_json_schema(),
-        "observation": InventoryObservation.model_json_schema(),
-        "state": InventoryState.model_json_schema(),
+        "action": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "integer", "minimum": 0, "maximum": 5}
+            }
+        },
+        "observation": {
+            "type": "object",
+            "properties": {
+                "item_states": {"type": "array"},
+                "pending_orders": {"type": "array"},
+                "budget_remaining": {"type": "number"},
+                "near_expiry_count": {"type": "integer"},
+                "expired_count": {"type": "integer"},
+                "steps_elapsed": {"type": "integer"}
+            }
+        }
     }
 
 

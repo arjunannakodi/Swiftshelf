@@ -107,7 +107,7 @@ def root():
         return HTMLResponse(content=f.read())
 
 
-@app.get("/health", summary="Health check")
+@app.api_route("/health", methods=["GET", "HEAD"], summary="Health check")
 def health() -> Dict[str, str]:
     """Returns 'healthy' status per OpenEnv spec."""
     return {"status": "healthy", "service": "swiftshelf-plus-plus"}

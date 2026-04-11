@@ -13,9 +13,6 @@ numpy>=1.21.0
 openenv-core>=0.2.3
 openai>=1.0.0
 
-# Meta PyTorch integration (LLM agent)
-torch
-transformers
 
 # Testing
 pytest>=7.0.0

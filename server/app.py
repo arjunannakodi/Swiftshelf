@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, List
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ from tasks import TASKS
 
 async def keepalive_ping():
     """Ping self every 4 minutes to prevent HF Space sleep."""
-    await asyncio.sleep(30)  # Wait for startup
+    await asyncio.sleep(60)  # Wait for startup
     while True:
         try:
             async with httpx.AsyncClient() as client:
@@ -163,9 +163,10 @@ def step(request: Action) -> Dict[str, Any]:
 
 
 @app.post("/mcp", summary="MCP JSON-RPC Interface Placeholder")
-def mcp_endpoint(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Minimum JSON-RPC stub for validator compliance."""
-    return {"jsonrpc": "2.0", "id": payload.get("id"), "result": "ok"}
+async def mcp_endpoint(request: Request) -> Dict[str, Any]:
+    """JSON-RPC 2.0 stub for OpenEnv validator compliance."""
+    body = await request.json()
+    return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"tools": []}}
 
 
 @app.get("/tasks", summary="List available evaluation tasks")

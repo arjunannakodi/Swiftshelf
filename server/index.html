@@ -2,411 +2,868 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SwiftShelf++ | Inventory Management API</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --accent: #38bdf8;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --gradient: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SwiftShelf++ | Inventory Control Terminal</title>
+  <meta name="description" content="OpenEnv-compliant dark-store inventory RL environment. Live control terminal for SwiftShelf++ — Meta PyTorch Hackathon submission.">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow-y: auto;
-            padding: 2rem 0;
-        }
+  <style>
+    :root {
+      --bg:        #040d08;
+      --panel:     #071510;
+      --border:    #0f3d22;
+      --glow:      #00ff6a;
+      --glow-dim:  #00c952;
+      --glow-faint:#003318;
+      --amber:     #ffb300;
+      --red:       #ff3d3d;
+      --blue:      #00cfff;
+      --text:      #b8ffce;
+      --text-dim:  #4d9960;
+      --mono:      'Share Tech Mono', monospace;
+      --sans:      'Rajdhani', sans-serif;
+    }
 
-        .container {
-            width: 90%;
-            max-width: 600px;
-            background: var(--card-bg);
-            padding: 3rem;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            text-align: center;
-            position: relative;
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .logo {
-            background: var(--gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-size: 3.5rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            letter-spacing: -2px;
-        }
+    html { scroll-behavior: smooth; }
 
-        .status {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(34, 197, 94, 0.1);
-            color: #4ade80;
-            padding: 0.5rem 1.25rem;
-            border-radius: 99px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            margin-bottom: 2rem;
-            border: 1px solid rgba(34, 197, 94, 0.2);
-        }
+    body {
+      font-family: var(--mono);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
 
-        .status::before {
-            content: "";
-            width: 8px;
-            height: 8px;
-            background: #22c55e;
-            border-radius: 50%;
-            box-shadow: 0 0 10px #22c55e;
-            animation: pulse 2s infinite;
-        }
+    /* ── CRT Scanlines ───────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 9999;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.18) 2px,
+        rgba(0, 0, 0, 0.18) 4px
+      );
+    }
 
-        @keyframes pulse {
-            0% {
-                opacity: 1;
-            }
+    /* ── Phosphor Screen Flicker ─────────────────────────────── */
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      92%       { opacity: 1; }
+      93%       { opacity: 0.92; }
+      94%       { opacity: 1; }
+      96%       { opacity: 0.96; }
+    }
+    body { animation: flicker 8s infinite; }
 
-            50% {
-                opacity: 0.4;
-            }
+    /* ── Layout ──────────────────────────────────────────────── */
+    .terminal {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
 
-            100% {
-                opacity: 1;
-            }
-        }
+    /* ── Header ──────────────────────────────────────────────── */
+    .hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
 
-        p {
-            color: var(--text-sub);
-            font-size: 1.1rem;
-            line-height: 1.6;
-            margin-bottom: 2.5rem;
-        }
+    .wordmark {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: clamp(1.6rem, 4vw, 2.6rem);
+      color: var(--glow);
+      text-shadow: 0 0 18px var(--glow), 0 0 40px rgba(0,255,106,0.3);
+      letter-spacing: 2px;
+      line-height: 1;
+    }
 
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-        }
+    .wordmark small {
+      font-size: 0.6em;
+      color: var(--text-dim);
+      display: block;
+      letter-spacing: 4px;
+      font-weight: 300;
+      margin-top: 2px;
+    }
 
-        .btn {
-            padding: 1rem;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.25rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            background: rgba(255, 255, 255, 0.02);
-        }
+    .badge-row {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.4rem;
+    }
 
-        .btn span:first-child {
-            color: var(--text-main);
-            font-size: 1rem;
-        }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 3px;
+      border: 1px solid;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
 
-        .btn span:last-child {
-            color: var(--text-sub);
-            font-size: 0.75rem;
-            font-weight: 400;
-        }
+    .badge-online {
+      border-color: var(--glow-dim);
+      color: var(--glow);
+      background: rgba(0,255,106,0.06);
+    }
 
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.05);
-            transform: translateY(-2px);
-            border-color: var(--accent);
-        }
+    .badge-online::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: var(--glow);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--glow);
+      animation: blink 1.4s ease-in-out infinite;
+    }
 
-        .btn.primary {
-            background: var(--gradient);
-            border: none;
-            grid-column: span 2;
-            padding: 1.25rem;
-        }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-        .btn.primary span:first-child {
-            color: white;
-        }
+    .badge-meta {
+      border-color: #ff6900;
+      color: #ff6900;
+      background: rgba(255,105,0,0.06);
+    }
 
-        .btn.primary span:last-child {
-            color: rgba(255, 255, 255, 0.7);
-        }
+    /* ── KPI Row ─────────────────────────────────────────────── */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
 
-        .btn.primary:hover {
-            box-shadow: 0 10px 25px -5px rgba(14, 165, 233, 0.4);
-            transform: translateY(-2px) scale(1.01);
-        }
+    .kpi {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.85rem 1rem;
+      position: relative;
+      overflow: hidden;
+    }
 
-        footer {
-            margin-top: 3rem;
-            font-size: 0.75rem;
-            color: var(--text-sub);
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 2rem;
-        }
+    .kpi::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 2px;
+      background: var(--glow);
+      opacity: 0.5;
+    }
 
-        /* Dashboard Styles */
-        .dashboard {
-            margin-top: 3rem;
-            padding-top: 2rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: left;
-        }
+    .kpi.kpi-warn::after { background: var(--amber); }
+    .kpi.kpi-danger::after { background: var(--red); }
+    .kpi.kpi-info::after { background: var(--blue); }
 
-        .dashboard-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
+    .kpi-label {
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 0.35rem;
+    }
 
-        .dashboard-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+    .kpi-value {
+      font-family: var(--sans);
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: var(--glow);
+      line-height: 1;
+      text-shadow: 0 0 12px rgba(0,255,106,0.4);
+      transition: color 0.4s;
+    }
 
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
+    .kpi.kpi-warn  .kpi-value { color: var(--amber); text-shadow: 0 0 12px rgba(255,179,0,0.4); }
+    .kpi.kpi-danger .kpi-value { color: var(--red); text-shadow: 0 0 12px rgba(255,61,61,0.4); }
+    .kpi.kpi-info  .kpi-value { color: var(--blue); text-shadow: 0 0 12px rgba(0,207,255,0.4); }
 
-        .stat-card {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 1rem;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+    .kpi-sub {
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-top: 0.2rem;
+    }
 
-        .stat-label {
-            font-size: 0.75rem;
-            color: var(--text-sub);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 0.25rem;
-        }
+    /* ── Main Grid ───────────────────────────────────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
 
-        .stat-value {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--accent);
-        }
+    @media (max-width: 720px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
 
-        .shelf-container {
-            background: rgba(0, 0, 0, 0.2);
-            padding: 1.5rem;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+    /* ── Panel ───────────────────────────────────────────────── */
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
 
-        .shelf-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 0.75rem;
-        }
+    .panel-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,255,106,0.03);
+    }
 
-        .item-box {
-            background: rgba(255, 255, 255, 0.05);
-            aspect-ratio: 1;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-            position: relative;
-        }
+    .panel-title {
+      font-size: 0.65rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--glow-dim);
+    }
 
-        .item-id {
-            font-size: 0.6rem;
-            color: var(--text-sub);
-            position: absolute;
-            top: 5px;
-            left: 5px;
-        }
+    .panel-tag {
+      font-size: 0.6rem;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+    }
 
-        .item-stock {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
+    /* ── Inventory Grid ──────────────────────────────────────── */
+    .inv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 0.5rem;
+      padding: 1rem;
+    }
 
-        .item-expiry {
-            font-size: 0.65rem;
-            margin-top: 2px;
-        }
+    .inv-item {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--glow-faint);
+      background: rgba(0,255,106,0.04);
+      position: relative;
+      cursor: default;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
 
-        .expiry-critical {
-            border-color: #ef4444;
-            background: rgba(239, 68, 68, 0.1);
-        }
+    .inv-item:hover {
+      transform: scale(1.06);
+      box-shadow: 0 0 16px rgba(0,255,106,0.2);
+      z-index: 2;
+    }
 
-        .expiry-warning {
-            border-color: #f59e0b;
-            background: rgba(245, 158, 11, 0.1);
-        }
+    .inv-item .iid {
+      position: absolute;
+      top: 3px; left: 4px;
+      font-size: 0.52rem;
+      color: var(--text-dim);
+    }
 
-        .stock-empty {
-            opacity: 0.3;
-        }
+    .inv-item .istock {
+      font-family: var(--sans);
+      font-size: 1.3rem;
+      font-weight: 700;
+      line-height: 1;
+    }
 
-        @keyframes pulse-red {
-            0% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-            }
+    .inv-item .iexp {
+      font-size: 0.55rem;
+      margin-top: 2px;
+      opacity: 0.8;
+    }
 
-            70% {
-                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-            }
+    .inv-item.st-ok    { border-color: var(--glow-faint); color: var(--glow); }
+    .inv-item.st-warn  { border-color: rgba(255,179,0,0.5); background: rgba(255,179,0,0.07); color: var(--amber); }
+    .inv-item.st-crit  { border-color: rgba(255,61,61,0.6); background: rgba(255,61,61,0.09); color: var(--red); animation: pulse-red 1.6s ease-in-out infinite; }
+    .inv-item.st-empty { opacity: 0.2; filter: grayscale(1); }
 
-            100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
-        }
+    @keyframes pulse-red {
+      0%,100% { box-shadow: 0 0 0 0 rgba(255,61,61,0.5); }
+      50%     { box-shadow: 0 0 0 6px rgba(255,61,61,0); }
+    }
 
-        .pulse-critical {
-            animation: pulse-red 2s infinite;
-        }
-    </style>
+    /* Tooltip on hover */
+    .inv-item::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0b2015;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.6rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 3px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      z-index: 10;
+      line-height: 1.5;
+    }
+    .inv-item:hover::after { opacity: 1; }
+
+    /* ── Side Panel ──────────────────────────────────────────── */
+    .side-stack { display: flex; flex-direction: column; gap: 1rem; }
+
+    /* Orders queue */
+    .orders-list {
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .orders-list::-webkit-scrollbar { width: 3px; }
+    .orders-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+    .order-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.45rem 0.6rem;
+      background: rgba(0,255,106,0.03);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-size: 0.7rem;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .order-id { color: var(--glow-dim); }
+    .order-qty { color: var(--text); }
+    .order-deadline {
+      padding: 0.15rem 0.4rem;
+      border-radius: 2px;
+      font-size: 0.62rem;
+    }
+    .dl-ok   { background: rgba(0,255,106,0.1); color: var(--glow); }
+    .dl-warn { background: rgba(255,179,0,0.12); color: var(--amber); }
+    .dl-crit { background: rgba(255,61,61,0.12); color: var(--red); }
+
+    .empty-msg {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.7rem;
+      padding: 1rem;
+    }
+
+    /* Tasks panel */
+    .tasks-list {
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .task-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.7rem;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+
+    .task-name { color: var(--text); }
+    .task-diff {
+      font-size: 0.6rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 2px;
+    }
+    .diff-easy   { background: rgba(0,255,106,0.12); color: var(--glow); }
+    .diff-medium { background: rgba(255,179,0,0.12); color: var(--amber); }
+    .diff-hard   { background: rgba(255,61,61,0.12);   color: var(--red); }
+
+    /* ── Sparkline ───────────────────────────────────────────── */
+    .sparkline-wrap {
+      padding: 0.5rem 1rem 0.75rem;
+    }
+
+    canvas#spark {
+      width: 100%;
+      height: 52px;
+      display: block;
+    }
+
+    /* ── API Buttons ─────────────────────────────────────────── */
+    .api-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .api-btn {
+      display: flex;
+      flex-direction: column;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border);
+      background: rgba(0,255,106,0.03);
+      border-radius: 3px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.18s;
+      gap: 0.15rem;
+    }
+
+    .api-btn:hover {
+      border-color: var(--glow-dim);
+      background: rgba(0,255,106,0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,255,106,0.12);
+    }
+
+    .api-btn-label {
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--glow-dim);
+    }
+
+    .api-btn-path {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .api-btn.primary {
+      border-color: var(--glow);
+      background: rgba(0,255,106,0.08);
+    }
+
+    .api-btn.primary .api-btn-label { color: var(--glow); }
+    .api-btn.primary:hover { box-shadow: 0 4px 24px rgba(0,255,106,0.25); }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .footer-left { font-size: 0.65rem; color: var(--text-dim); line-height: 1.8; }
+    .footer-right { font-size: 0.62rem; color: var(--text-dim); text-align: right; }
+
+    /* ── Ticker ──────────────────────────────────────────────── */
+    .ticker-wrap {
+      overflow: hidden;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+      padding: 0.4rem 0;
+      background: rgba(0,255,106,0.02);
+    }
+
+    .ticker {
+      display: inline-block;
+      white-space: nowrap;
+      animation: scroll 28s linear infinite;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      padding-left: 100%;
+    }
+
+    @keyframes scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-100%); }
+    }
+
+    /* ── Reward flash ────────────────────────────────────────── */
+    @keyframes flash {
+      0%   { color: #fff; text-shadow: 0 0 20px #fff; }
+      100% { color: var(--glow); text-shadow: 0 0 12px rgba(0,255,106,0.4); }
+    }
+    .flash { animation: flash 0.6s ease-out; }
+  </style>
 </head>
 
 <body>
-    <div class="container">
-        <div class="logo">SwiftShelf++</div>
-        <div class="status">System Online</div>
+  <div class="terminal">
 
-        <p>The inventory management simulation environment is live. <br>Use the API endpoints below to interact with the
-            system.</p>
-
-        <div class="grid">
-            <a href="docs" class="btn primary">
-                <span>View API Documentation</span>
-                <span>Swagger UI interactive docs</span>
-            </a>
-            <a href="health" class="btn">
-                <span>Health Check</span>
-                <span>/health</span>
-            </a>
-            <a href="metadata" class="btn">
-                <span>Metadata</span>
-                <span>/metadata</span>
-            </a>
-            <a href="tasks" class="btn">
-                <span>Available Tasks</span>
-                <span>/tasks</span>
-            </a>
-            <a href="schema" class="btn">
-                <span>API Schema</span>
-                <span>/schema</span>
-            </a>
+    <!-- Header -->
+    <header class="hdr">
+      <div>
+        <div class="wordmark">SwiftShelf<span style="color:var(--glow-dim)">++</span>
+          <small>Inventory Control Terminal</small>
         </div>
+      </div>
+      <div class="badge-row">
+        <div class="badge badge-online" id="status-badge">SYSTEM ONLINE</div>
+        <div class="badge badge-meta">Meta PyTorch Hackathon</div>
+      </div>
+    </header>
 
-        <div class="dashboard">
-            <div class="dashboard-header">
-                <div class="dashboard-title">
-                    <span
-                        style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 8px #22c55e; animation: pulse 2s infinite;"></span>
-                    Live Monitor
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-sub);">Updates: 2s</div>
-            </div>
-
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-label">Budget</div>
-                    <div class="stat-value" id="stat-budget">$0.00</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Steps</div>
-                    <div class="stat-value" id="stat-steps">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Expired</div>
-                    <div class="stat-value" id="stat-expired" style="color: #ef4444;">0</div>
-                </div>
-            </div>
-
-            <div class="shelf-container">
-                <div class="stat-label" style="margin-bottom: 1rem;">Shelf Inventory</div>
-                <div class="shelf-grid" id="shelf-grid">
-                    <!-- Items populated by JS -->
-                </div>
-            </div>
-        </div>
-
-
-        <footer>
-            Meta PyTorch Hackathon Optimization • Built with FastAPI
-        </footer>
+    <!-- Ticker -->
+    <div class="ticker-wrap">
+      <span class="ticker" id="ticker-text">
+        &nbsp;&nbsp;&nbsp;
+        SWIFTSHELF++ OPENENV COMPLIANT &nbsp;◆&nbsp;
+        FEFO DISPATCH ACTIVE &nbsp;◆&nbsp;
+        DARK-STORE SIMULATION &nbsp;◆&nbsp;
+        3 EVALUATION TASKS &nbsp;◆&nbsp;
+        REWARD SHAPING ENABLED &nbsp;◆&nbsp;
+        PYTORCH LLM AGENT &nbsp;◆&nbsp;
+        META HACKATHON SUBMISSION &nbsp;◆&nbsp;
+      </span>
     </div>
 
-    <script>
-        async function updateDashboard() {
-            try {
-                const response = await fetch('state');
-                const state = await response.json();
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi" id="kpi-budget">
+        <div class="kpi-label">Budget</div>
+        <div class="kpi-value" id="kv-budget">—</div>
+        <div class="kpi-sub">Initial: $1000.00</div>
+      </div>
+      <div class="kpi kpi-info" id="kpi-steps">
+        <div class="kpi-label">Steps</div>
+        <div class="kpi-value" id="kv-steps">—</div>
+        <div class="kpi-sub">Max: 200</div>
+      </div>
+      <div class="kpi" id="kpi-reward">
+        <div class="kpi-label">Total Reward</div>
+        <div class="kpi-value" id="kv-reward">—</div>
+        <div class="kpi-sub">Cumulative</div>
+      </div>
+      <div class="kpi" id="kpi-near">
+        <div class="kpi-label">Near Expiry</div>
+        <div class="kpi-value" id="kv-near">—</div>
+        <div class="kpi-sub">≤ 3 days</div>
+      </div>
+      <div class="kpi kpi-danger" id="kpi-expired">
+        <div class="kpi-label">Expired</div>
+        <div class="kpi-value" id="kv-expired">—</div>
+        <div class="kpi-sub">Wasted items</div>
+      </div>
+      <div class="kpi kpi-info" id="kpi-orders">
+        <div class="kpi-label">Pending Orders</div>
+        <div class="kpi-value" id="kv-orders">—</div>
+        <div class="kpi-sub">In queue</div>
+      </div>
+    </div>
 
-                // Update Stats
-                document.getElementById('stat-budget').textContent = `$${state.budget_remaining.toFixed(2)}`;
-                document.getElementById('stat-steps').textContent = state.steps_elapsed;
-                document.getElementById('stat-expired').textContent = state.expired_count;
+    <!-- Main Grid -->
+    <div class="main-grid">
 
-                // Update Shelf
-                const grid = document.getElementById('shelf-grid');
-                grid.innerHTML = '';
+      <!-- Inventory Panel -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-title">Shelf Inventory — 20 SKUs</span>
+          <span class="panel-tag" id="inv-ts">LOADING...</span>
+        </div>
+        <div class="inv-grid" id="inv-grid">
+          <!-- populated by JS -->
+        </div>
+      </div>
 
-                state.item_states.forEach(item => {
-                    const box = document.createElement('div');
-                    box.className = 'item-box';
+      <!-- Side Stack -->
+      <div class="side-stack">
 
-                    if (item.stock === 0) box.classList.add('stock-empty');
+        <!-- Reward Sparkline -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-title">Reward History</span>
+            <span class="panel-tag" id="spark-count">0 readings</span>
+          </div>
+          <div class="sparkline-wrap">
+            <canvas id="spark" width="260" height="52"></canvas>
+          </div>
+        </div>
 
-                    if (item.expiry_days <= 1 && item.stock > 0) {
-                        box.classList.add('expiry-critical', 'pulse-critical');
-                    } else if (item.expiry_days <= 3 && item.stock > 0) {
-                        box.classList.add('expiry-warning');
-                    }
+        <!-- Pending Orders -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-title">Pending Orders</span>
+            <span class="panel-tag" id="order-count">0</span>
+          </div>
+          <div class="orders-list" id="orders-list">
+            <div class="empty-msg">No active orders</div>
+          </div>
+        </div>
 
-                    box.innerHTML = `
-                        <div class="item-id">ID ${item.id}</div>
-                        <div class="item-stock">${item.stock}</div>
-                        <div class="item-expiry">${item.expiry_days.toFixed(1)}d</div>
-                    `;
-                    grid.appendChild(box);
-                });
+        <!-- Tasks -->
+        <div class="panel">
+          <div class="panel-hdr">
+            <span class="panel-title">Evaluation Tasks</span>
+            <span class="panel-tag">OpenEnv</span>
+          </div>
+          <div class="tasks-list" id="tasks-list">
+            <div class="empty-msg">Loading…</div>
+          </div>
+        </div>
 
-            } catch (error) {
-                console.error('Failed to fetch state:', error);
-            }
+      </div>
+    </div>
+
+    <!-- API Quick Links -->
+    <div class="api-row">
+      <a href="docs" class="api-btn primary">
+        <span class="api-btn-label">API Docs</span>
+        <span class="api-btn-path">/docs — Swagger UI</span>
+      </a>
+      <a href="health" class="api-btn">
+        <span class="api-btn-label">Health</span>
+        <span class="api-btn-path">/health</span>
+      </a>
+      <a href="metadata" class="api-btn">
+        <span class="api-btn-label">Metadata</span>
+        <span class="api-btn-path">/metadata</span>
+      </a>
+      <a href="schema" class="api-btn">
+        <span class="api-btn-label">Schema</span>
+        <span class="api-btn-path">/schema</span>
+      </a>
+      <a href="tasks" class="api-btn">
+        <span class="api-btn-label">Tasks</span>
+        <span class="api-btn-path">/tasks</span>
+      </a>
+      <a href="state" class="api-btn">
+        <span class="api-btn-label">State</span>
+        <span class="api-btn-path">/state</span>
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-left">
+        SwiftShelf++ &nbsp;·&nbsp; OpenEnv Compliant &nbsp;·&nbsp; MIT License<br>
+        Env: <code>gymnasium.Env</code> &nbsp;·&nbsp; Server: <code>FastAPI 0.100+</code> &nbsp;·&nbsp; LLM: <code>facebook/opt-125m</code>
+      </div>
+      <div class="footer-right" id="footer-ts">
+        Polling every 2s<br>
+        <span id="last-update">—</span>
+      </div>
+    </footer>
+
+  </div><!-- .terminal -->
+
+  <script>
+    /* ── Sparkline ────────────────────────────────────────────── */
+    const sparkCanvas = document.getElementById('spark');
+    const sparkCtx    = sparkCanvas.getContext('2d');
+    const rewardHistory = [];
+    const MAX_HISTORY   = 60;
+
+    function drawSparkline() {
+      const W = sparkCanvas.width  = sparkCanvas.offsetWidth;
+      const H = sparkCanvas.height = 52;
+      sparkCtx.clearRect(0, 0, W, H);
+
+      if (rewardHistory.length < 2) return;
+
+      const min = Math.min(...rewardHistory);
+      const max = Math.max(...rewardHistory);
+      const range = max - min || 1;
+
+      const pts = rewardHistory.map((v, i) => ({
+        x: (i / (rewardHistory.length - 1)) * W,
+        y: H - ((v - min) / range) * (H - 8) - 4,
+      }));
+
+      // Fill
+      const grad = sparkCtx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0,   'rgba(0,255,106,0.25)');
+      grad.addColorStop(1,   'rgba(0,255,106,0)');
+      sparkCtx.beginPath();
+      sparkCtx.moveTo(pts[0].x, H);
+      pts.forEach(p => sparkCtx.lineTo(p.x, p.y));
+      sparkCtx.lineTo(pts[pts.length-1].x, H);
+      sparkCtx.closePath();
+      sparkCtx.fillStyle = grad;
+      sparkCtx.fill();
+
+      // Line
+      sparkCtx.beginPath();
+      pts.forEach((p, i) => i === 0 ? sparkCtx.moveTo(p.x, p.y) : sparkCtx.lineTo(p.x, p.y));
+      sparkCtx.strokeStyle = '#00ff6a';
+      sparkCtx.lineWidth   = 1.5;
+      sparkCtx.shadowColor = '#00ff6a';
+      sparkCtx.shadowBlur  = 6;
+      sparkCtx.stroke();
+
+      // Last dot
+      const last = pts[pts.length - 1];
+      sparkCtx.beginPath();
+      sparkCtx.arc(last.x, last.y, 3, 0, Math.PI * 2);
+      sparkCtx.fillStyle = '#fff';
+      sparkCtx.shadowColor = '#00ff6a';
+      sparkCtx.shadowBlur  = 10;
+      sparkCtx.fill();
+
+      document.getElementById('spark-count').textContent = `${rewardHistory.length} readings`;
+    }
+
+    /* ── Inventory Grid ───────────────────────────────────────── */
+    function renderInventory(items) {
+      const grid = document.getElementById('inv-grid');
+      grid.innerHTML = '';
+
+      items.forEach(item => {
+        const el = document.createElement('div');
+        el.className = 'inv-item';
+
+        if (item.stock === 0) {
+          el.classList.add('st-empty');
+        } else if (item.expiry_days <= 1) {
+          el.classList.add('st-crit');
+        } else if (item.expiry_days <= 3) {
+          el.classList.add('st-warn');
+        } else {
+          el.classList.add('st-ok');
         }
 
-        // Initial update and interval
-        updateDashboard();
-        setInterval(updateDashboard, 2000);
-    </script>
-</body>
+        el.dataset.tip = `SKU #${item.id}\nStock: ${item.stock}\nExpiry: ${item.expiry_days.toFixed(1)}d\nPrice: $${item.price.toFixed(2)}`;
 
+        el.innerHTML = `
+          <span class="iid">#${item.id}</span>
+          <span class="istock">${item.stock}</span>
+          <span class="iexp">${item.expiry_days.toFixed(1)}d</span>
+        `;
+        grid.appendChild(el);
+      });
+
+      const now = new Date().toLocaleTimeString();
+      document.getElementById('inv-ts').textContent = `UPDATED ${now}`;
+    }
+
+    /* ── Orders ───────────────────────────────────────────────── */
+    function renderOrders(orders) {
+      const list = document.getElementById('orders-list');
+      document.getElementById('order-count').textContent = orders.length;
+
+      if (orders.length === 0) {
+        list.innerHTML = '<div class="empty-msg">Queue empty</div>';
+        return;
+      }
+
+      list.innerHTML = orders.map(o => {
+        const dlClass = o.deadline <= 3 ? 'dl-crit' : o.deadline <= 8 ? 'dl-warn' : 'dl-ok';
+        return `
+          <div class="order-row">
+            <span class="order-id">SKU <b>#${o.item_id}</b></span>
+            <span class="order-qty">×${o.quantity}</span>
+            <span class="order-deadline ${dlClass}">DL:${o.deadline}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ── KPI Updater ──────────────────────────────────────────── */
+    let prevReward = null;
+
+    function updateKPIs(state) {
+      const obs = state.observation || state;
+      const budget  = obs.budget_remaining   ?? 0;
+      const steps   = obs.steps_elapsed      ?? 0;
+      const expired = obs.expired_count      ?? 0;
+      const near    = obs.near_expiry_count  ?? 0;
+      const reward  = state.total_reward     ?? 0;
+      const orders  = (obs.pending_orders   ?? []).length;
+
+      document.getElementById('kv-budget').textContent  = `$${budget.toFixed(0)}`;
+      document.getElementById('kv-steps').textContent   = steps;
+      document.getElementById('kv-expired').textContent = expired;
+      document.getElementById('kv-near').textContent    = near;
+      document.getElementById('kv-orders').textContent  = orders;
+
+      const rewardEl = document.getElementById('kv-reward');
+      rewardEl.textContent = reward.toFixed(1);
+      if (prevReward !== null && reward !== prevReward) {
+        rewardEl.classList.remove('flash');
+        void rewardEl.offsetWidth;
+        rewardEl.classList.add('flash');
+      }
+      prevReward = reward;
+
+      // Update KPI accent classes dynamically
+      document.getElementById('kpi-near').className = `kpi ${near > 3 ? 'kpi-warn' : ''}`;
+      document.getElementById('kpi-budget').className = `kpi ${budget < 300 ? 'kpi-danger' : budget < 600 ? 'kpi-warn' : ''}`;
+
+      // Sparkline
+      if (steps > 0) {
+        rewardHistory.push(reward);
+        if (rewardHistory.length > MAX_HISTORY) rewardHistory.shift();
+        drawSparkline();
+      }
+
+      // Last update time
+      document.getElementById('last-update').textContent = `Last: ${new Date().toLocaleTimeString()}`;
+    }
+
+    /* ── Tasks Loader ─────────────────────────────────────────── */
+    async function loadTasks() {
+      try {
+        const res = await fetch('tasks');
+        const tasks = await res.json();
+        const list = document.getElementById('tasks-list');
+        const diffs = { easy: 'diff-easy', medium: 'diff-medium', hard: 'diff-hard' };
+
+        list.innerHTML = tasks.map((t, i) => {
+          const d = ['easy','medium','hard'][i] ?? 'easy';
+          return `
+            <div class="task-row">
+              <span class="task-name">Task ${i+1}: ${t.name}</span>
+              <span class="task-diff ${diffs[d]}">${d.toUpperCase()}</span>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        document.getElementById('tasks-list').innerHTML = '<div class="empty-msg">Unavailable</div>';
+      }
+    }
+
+    /* ── Main Poll ────────────────────────────────────────────── */
+    async function poll() {
+      try {
+        const res   = await fetch('state');
+        const state = await res.json();
+        const obs   = state.observation || state;
+
+        updateKPIs(state);
+        renderInventory(obs.item_states ?? []);
+        renderOrders(obs.pending_orders ?? []);
+
+        document.getElementById('status-badge').textContent = 'SYSTEM ONLINE';
+        document.getElementById('status-badge').style.color = '';
+      } catch (e) {
+        document.getElementById('status-badge').textContent = 'OFFLINE';
+        document.getElementById('status-badge').style.color = 'var(--red)';
+      }
+    }
+
+    /* ── Boot ─────────────────────────────────────────────────── */
+    loadTasks();
+    poll();
+    setInterval(poll, 2000);
+    window.addEventListener('resize', drawSparkline);
+  </script>
+</body>
 </html>

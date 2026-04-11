@@ -167,3 +167,55 @@ def test_fefo_bonus_is_conditional():
     _, r_non_fefo, _, _, _ = env.step(0) # pick item 1
 
     assert r_fefo > r_non_fefo, f"Expected FEFO reward {r_fefo} > non-FEFO {r_non_fefo}"
+
+
+# ================================================================== #
+# 10. Seed reproducibility — same seed → identical observations
+# ================================================================== #
+def test_seed_reproducibility():
+    """Two envs reset with the same seed must produce identical observations."""
+    env_a = InventoryEnv()
+    env_b = InventoryEnv()
+
+    obs_a, _ = env_a.reset(seed=42)
+    obs_b, _ = env_b.reset(seed=42)
+
+    # Budget and step counters must match
+    assert obs_a["budget_remaining"] == obs_b["budget_remaining"]
+    assert obs_a["steps_elapsed"] == obs_b["steps_elapsed"]
+    assert obs_a["near_expiry_count"] == obs_b["near_expiry_count"]
+    assert obs_a["expired_count"] == obs_b["expired_count"]
+
+    # All 20 items must be identical
+    assert len(obs_a["item_states"]) == len(obs_b["item_states"]) == 20
+    for item_a, item_b in zip(obs_a["item_states"], obs_b["item_states"]):
+        assert item_a["id"] == item_b["id"]
+        assert item_a["stock"] == item_b["stock"]
+        assert item_a["expiry_days"] == pytest.approx(item_b["expiry_days"])
+        assert item_a["price"] == pytest.approx(item_b["price"])
+
+    # Pending orders must match
+    assert len(obs_a["pending_orders"]) == len(obs_b["pending_orders"])
+    for o_a, o_b in zip(obs_a["pending_orders"], obs_b["pending_orders"]):
+        assert o_a["item_id"] == o_b["item_id"]
+        assert o_a["quantity"] == o_b["quantity"]
+        assert o_a["deadline"] == o_b["deadline"]
+
+
+# ================================================================== #
+# 11. Different seeds → different observations (randomness check)
+# ================================================================== #
+def test_seed_different_produces_different_obs():
+    """Two different seeds must not produce the same item states."""
+    env = InventoryEnv()
+
+    obs_42, _ = env.reset(seed=42)
+    obs_99, _ = env.reset(seed=99)
+
+    # At least one item must differ (expiry_days or stock)
+    diffs = [
+        item_a["expiry_days"] != item_b["expiry_days"]
+        or item_a["stock"] != item_b["stock"]
+        for item_a, item_b in zip(obs_42["item_states"], obs_99["item_states"])
+    ]
+    assert any(diffs), "Different seeds must produce at least one different item state"

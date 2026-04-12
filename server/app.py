@@ -18,3 +18,13 @@ if _root not in sys.path:
 from app import app  # noqa: F401  – re-export for `server.app:app`
 
 __all__ = ["app"]
+
+
+def main():
+    """Entry point for multi-mode deployment (uv run / openenv serve)."""
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+
+
+if __name__ == "__main__":
+    main()
